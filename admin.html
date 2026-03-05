@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Админ-панель - CollabBoard</title>
+    <link rel="stylesheet" href="public/styles/auth.css">
+    <style>
+        .admin-container {
+            max-width: 800px;
+        }
+        .user-card {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 10px;
+            border-left: 4px solid #00ff88;
+        }
+        .user-actions {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+        .delete-btn {
+            background: #ff4444;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .deactivate-btn {
+            background: #ffaa00;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .inactive {
+            opacity: 0.6;
+            border-left-color: #ffaa00;
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container admin-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <h1>CollabBoard Admin</h1>
+                <p>Управление пользователями</p>
+            </div>
+            
+            <div id="usersList">
+                <p>Загрузка пользователей...</p>
+            </div>
+            
+            <div class="auth-footer">
+                <p><a href="index.html">← На главную</a></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        
+        async function loadUsers() {
+            try {
+                const response = await fetch('/api/auth/admin/users', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    displayUsers(data.users);
+                } else {
+                    document.getElementById('usersList').innerHTML = 
+                        '<p class="error-message-global">Ошибка загрузки пользователей</p>';
+                }
+            } catch (error) {
+                console.error('Error loading users:', error);
+                document.getElementById('usersList').innerHTML = 
+                    '<p class="error-message-global">Ошибка соединения с сервером</p>';
+            }
+        }
+
+        function displayUsers(users) {
+            const container = document.getElementById('usersList');
+            if (users.length === 0) {
+                container.innerHTML = '<p>Пользователи не найдены</p>';
+                return;
+            }
+
+            container.innerHTML = users.map(user => `
+                <div class="user-card ${user.isActive ? '' : 'inactive'}">
+                    <h3>${user.username} 
+                        <small>(${user.email})</small>
+                        ${!user.isActive ? ' [НЕАКТИВЕН]' : ''}
+                    </h3>
+                    <p><strong>ID:</strong> ${user._id}</p>
+                    <p><strong>Создан:</strong> ${new Date(user.createdAt).toLocaleString('ru-RU')}</p>
+                    <p><strong>Последний вход:</strong> ${user.lastLogin ? new Date(user.lastLogin).toLocaleString('ru-RU') : 'Никогда'}</p>
+                    
+                    <div class="user-actions">
+                        <button class="delete-btn" onclick="deleteUser('${user._id}')">Удалить</button>
+                        ${user.isActive ? 
+                            `<button class="deactivate-btn" onclick="deactivateUser('${user._id}')">Деактивировать</button>` :
+                            `<button style="background: #00ff88; color: black; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;" 
+                                    onclick="activateUser('${user._id}')">Активировать</button>`
+                        }
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function deleteUser(userId) {
+            if (!confirm('Вы уверены, что хотите удалить этого пользователя? Это действие нельзя отменить.')) return;
+            
+            try {
+                const response = await fetch(`/api/auth/admin/users/${userId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    alert('Пользователь удален');
+                    loadUsers();
+                } else {
+                    alert('Ошибка: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error deleting user:', error);
+                alert('Ошибка при удалении пользователя');
+            }
+        }
+
+        async function deactivateUser(userId) {
+            try {
+                const response = await fetch(`/api/auth/admin/users/${userId}/deactivate`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    alert('Пользователь деактивирован');
+                    loadUsers();
+                } else {
+                    alert('Ошибка: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error deactivating user:', error);
+                alert('Ошибка при деактивации пользователя');
+            }
+        }
+
+        // Проверяем авторизацию
+        if (!token) {
+            alert('Требуется авторизация');
+            window.location.href = 'login.html';
+        } else {
+            loadUsers();
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мои доски - CollabBoard</title>
+    <link rel="stylesheet" href="styles/auth.css">
+    <style>
+        .boards-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .boards-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        .boards-title {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .create-board-btn {
+            background: linear-gradient(45deg, #00ff88, #8a2be2);
+            color: #0f0f1a;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .create-board-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 255, 136, 0.3);
+        }
+        
+        .boards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .board-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .board-card:hover {
+            transform: translateY(-5px);
+            border-color: #00ff88;
+            box-shadow: 0 10px 25px rgba(0, 255, 136, 0.1);
+        }
+        
+        .board-card h3 {
+            color: #00ff88;
+            margin-bottom: 10px;
+            font-size: 1.2rem;
+        }
+        
+        .board-meta {
+            color: #b0b0c0;
+            font-size: 0.85rem;
+            margin-top: 10px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .board-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            opacity: 0.7;
+            transition: opacity 0.3s ease;
+        }
+        
+        .board-card:hover .board-actions {
+            opacity: 1;
+        }
+        
+        .delete-board {
+            background: #ff4444;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        
+        .edit-board {
+            background: #8a2be2;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        
+        .mode-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .mode-plans {
+            background: #00ff88;
+            color: #0f0f1a;
+        }
+        
+        .mode-memory {
+            background: #8a2be2;
+            color: white;
+        }
+        
+        /* Модальное окно */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+        }
+        
+        .modal-content {
+            background: #1a1a2e;
+            margin: 10% auto;
+            padding: 30px;
+            border-radius: 20px;
+            max-width: 500px;
+            width: 90%;
+            border: 1px solid #8a2be2;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .close {
+            color: #b0b0c0;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .close:hover {
+            color: #00ff88;
+        }
+        
+        .modal input, .modal select {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            color: white;
+        }
+        
+        .modal select option {
+            background: #1a1a2e;
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .modal-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        
+        .modal-btn.primary {
+            background: linear-gradient(45deg, #00ff88, #8a2be2);
+            color: #0f0f1a;
+        }
+        
+        .modal-btn.secondary {
+            background: transparent;
+            border: 1px solid #ff4444;
+            color: #ff4444;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #b0b0c0;
+        }
+        
+        .empty-state p {
+            font-size: 1.2rem;
+            margin: 20px 0;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #00ff88;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #00ff88;
+            text-decoration: none;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        
+        .logout-btn {
+            background: #ff4444;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="boards-container">
+        <div class="boards-header">
+            <div class="boards-title">
+                <h1>CollabBoard</h1>
+                <h2>📋 Мои доски</h2>
+            </div>
+            <div>
+                <button class="logout-btn" onclick="logout()">Выйти</button>
+            </div>
+        </div>
+        
+        <div class="boards-header">
+            <h3>Ваши рабочие пространства</h3>
+            <button class="create-board-btn" onclick="showCreateBoardModal()">
+                + Создать доску
+            </button>
+        </div>
+        
+        <div id="boardsGrid" class="boards-grid">
+            <div class="loading">Загрузка досок...</div>
+        </div>
+        
+        <div class="auth-footer">
+            <a href="dashboard.html" class="back-link">← Назад в личный кабинет</a>
+        </div>
+    </div>
+    
+    <!-- Модальное окно создания доски -->
+    <div id="createBoardModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Создать новую доску</h2>
+                <span class="close" onclick="hideCreateBoardModal()">&times;</span>
+            </div>
+            <input type="text" id="boardTitle" placeholder="Название доски">
+            
+            <p style="color: #b0b0c0; margin: 10px 0 5px;">Режим доски:</p>
+            <select id="boardMode">
+                <option value="plans">📋 Планы (список задач)</option>
+                <option value="memory">🕸️ Воспоминания (интерактивный граф)</option>
+            </select>
+            
+            <div class="modal-actions">
+                <button class="modal-btn primary" onclick="createBoard()">Создать</button>
+                <button class="modal-btn secondary" onclick="hideCreateBoardModal()">Отмена</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Модальное окно редактирования -->
+    <div id="editBoardModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Редактировать доску</h2>
+                <span class="close" onclick="hideEditBoardModal()">&times;</span>
+            </div>
+            <input type="text" id="editBoardTitle" placeholder="Название доски">
+            <input type="hidden" id="editBoardId">
+            <div class="modal-actions">
+                <button class="modal-btn primary" onclick="updateBoard()">Сохранить</button>
+                <button class="modal-btn secondary" onclick="hideEditBoardModal()">Отмена</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Модальное окно подтверждения -->
+    <div id="confirmModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 350px;">
+            <div class="modal-header">
+                <h2 id="confirmTitle">Подтверждение</h2>
+                <span class="close" onclick="hideConfirmModal()">&times;</span>
+            </div>
+            <p id="confirmMessage" style="margin: 20px 0; color: #b0b0c0;">Вы уверены?</p>
+            <div class="modal-actions">
+                <button class="modal-btn primary" id="confirmOkBtn">Да, удалить</button>
+                <button class="modal-btn secondary" onclick="hideConfirmModal()">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        #confirmModal .modal-content {
+            background: #1a1a2e;
+            border: 1px solid #ff4444;
+        }
+        #confirmModal .modal-btn.primary {
+            background: #ff4444;
+            color: white;
+        }
+        #confirmModal .modal-btn.primary:hover {
+            background: #ff6666;
+            transform: translateY(-2px);
+        }
+    </style>
+    
+    <script>
+        console.log('🔍 Начинаем загрузку boards.html');
+        console.log('📍 Текущий URL:', window.location.href);
+        console.log('📍 Hostname:', window.location.hostname);
+        
+        const token = localStorage.getItem('token');
+        console.log('🔑 Токен есть?', token ? 'Да' : 'Нет');
+        
+        if (!token) {
+            console.log('❌ Нет токена, редирект на login');
+            window.location.href = 'login.html';
+        }
+        
+        const API_URL = '/api/boards';
+        console.log('🌐 API_URL:', API_URL);
+        
+        async function loadBoards() {
+            console.log('🔄 loadBoards вызвана');
+            try {
+                console.log('📤 Отправка запроса на:', API_URL);
+                console.log('📤 С заголовком:', `Bearer ${token.substring(0, 10)}...`);
+                
+                const response = await fetch(API_URL, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                console.log('📥 Статус ответа:', response.status);
+                console.log('📥 Заголовки ответа:', response.headers);
+                
+                const text = await response.text();
+                console.log('📥 Текст ответа (первые 200 символов):', text.substring(0, 200));
+                
+                // Попробуем распарсить
+                try {
+                    const data = JSON.parse(text);
+                    console.log('✅ Распарсено успешно:', data);
+                    
+                    if (data.success) {
+                        displayBoards(data.boards);
+                    } else {
+                        document.getElementById('boardsGrid').innerHTML = 
+                            '<div class="empty-state">Ошибка загрузки досок</div>';
+                    }
+                } catch (parseError) {
+                    console.error('❌ Ошибка парсинга JSON:', parseError);
+                    document.getElementById('boardsGrid').innerHTML = 
+                        '<div class="empty-state">Ошибка: сервер вернул не JSON</div>';
+                }
+                
+            } catch (error) {
+                console.error('💥 Ошибка fetch:', error);
+                console.error('💥 Имя ошибки:', error.name);
+                console.error('💥 Сообщение:', error.message);
+                document.getElementById('boardsGrid').innerHTML = 
+                    '<div class="empty-state">Ошибка соединения с сервером</div>';
+            }
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('✅ DOM загружен, вызываем loadBoards');
+            loadBoards();
+        })
+        
+        // Отображение досок
+        function displayBoards(boards) {
+            const grid = document.getElementById('boardsGrid');
+            
+            if (boards.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state">
+                        <p>📭 У вас пока нет досок</p>
+                        <p>Создайте свою первую доску!</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            grid.innerHTML = boards.map(board => `
+                <div class="board-card" onclick="openBoard(${board.id}, '${board.mode}')">
+                    <div class="mode-badge ${board.mode === 'memory' ? 'mode-memory' : 'mode-plans'}">
+                        ${board.mode === 'memory' ? '🕸️ Воспоминания' : '📋 Планы'}
+                    </div>
+                    <h3>${board.title}</h3>
+                    <div class="board-meta">
+                        <span>📅 ${new Date(board.createdAt).toLocaleDateString()}</span>
+                        <span>${board.mode === 'memory' 
+                            ? (board.content?.nodes?.length || 0) + ' вершин' 
+                            : (board.content?.length || 0) + ' элементов'}</span>
+                    </div>
+                    <div class="board-actions" onclick="event.stopPropagation()">
+                        <button class="edit-board" onclick="showEditBoardModal(${board.id}, '${board.title}')">
+                            ✏️ Ред.
+                        </button>
+                        <button class="delete-board" onclick="deleteBoard(${board.id})">
+                            🗑️ Удалить
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Открыть доску
+        function openBoard(boardId, mode) {
+            if (mode === 'memory') {
+                window.location.href = `memory-board.html?id=${boardId}`;
+            } else {
+                window.location.href = `board.html?id=${boardId}`;
+            }
+        }
+        
+        // Модальное окно создания
+        function showCreateBoardModal() {
+            document.getElementById('createBoardModal').style.display = 'block';
+            document.getElementById('boardTitle').value = '';
+            document.getElementById('boardMode').value = 'plans';
+        }
+        
+        function hideCreateBoardModal() {
+            document.getElementById('createBoardModal').style.display = 'none';
+        }
+        
+        // Создать доску
+        async function createBoard() {
+            const title = document.getElementById('boardTitle').value.trim();
+            const mode = document.getElementById('boardMode').value;
+            
+            if (!title) {
+                alert('Введите название доски');
+                return;
+            }
+            
+            console.log('🔄 Создаём доску:', { title, mode });
+            
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ title, mode })
+                });
+                
+                console.log('📥 Статус ответа:', response.status);
+                
+                const text = await response.text();
+                console.log('📥 Текст ответа:', text);
+                
+                try {
+                    const data = JSON.parse(text);
+                    console.log('📦 Данные:', data);
+                    
+                    if (data.success) {
+                        hideCreateBoardModal();
+                        loadBoards();
+                    } else {
+                        alert('Ошибка: ' + (data.message || 'Неизвестная ошибка'));
+                    }
+                } catch (parseError) {
+                    console.error('❌ Ошибка парсинга JSON:', parseError);
+                    alert('Сервер вернул невалидный JSON');
+                }
+                
+            } catch (error) {
+                console.error('💥 Ошибка:', error);
+                alert('Ошибка соединения с сервером');
+            }
+        }
+        
+        // Модальное окно редактирования
+        function showEditBoardModal(boardId, title) {
+            document.getElementById('editBoardModal').style.display = 'block';
+            document.getElementById('editBoardId').value = boardId;
+            document.getElementById('editBoardTitle').value = title;
+        }
+        
+        function hideEditBoardModal() {
+            document.getElementById('editBoardModal').style.display = 'none';
+        }
+        
+        // Обновить доску
+        async function updateBoard() {
+            const boardId = document.getElementById('editBoardId').value;
+            const title = document.getElementById('editBoardTitle').value.trim();
+            
+            if (!title) {
+                alert('Введите название доски');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_URL}/${boardId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ title })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    hideEditBoardModal();
+                    loadBoards();
+                } else {
+                    alert('Ошибка: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Ошибка соединения с сервером');
+            }
+        }
+        
+        // Удалить доску
+        async function deleteBoard(boardId) {
+            showConfirm(
+                'Удаление доски',
+                'Вы уверены, что хотите удалить эту доску? Это действие нельзя отменить.',
+                async function() {
+                    try {
+                        const response = await fetch(`${API_URL}/${boardId}`, {
+                            method: 'DELETE',
+                            headers: {
+                                'Authorization': `Bearer ${token}`
+                            }
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            loadBoards();
+                        } else {
+                            alert('Ошибка: ' + data.message);
+                        }
+                    } catch (error) {
+                        console.error('Error:', error);
+                        alert('Ошибка соединения с сервером');
+                    }
+                }
+            );
+        }
+        
+        // Модальное окно подтверждения
+        let confirmCallback = null;
+        
+        function showConfirm(title, message, onConfirm) {
+            document.getElementById('confirmTitle').textContent = title;
+            document.getElementById('confirmMessage').textContent = message;
+            confirmCallback = onConfirm;
+            document.getElementById('confirmModal').style.display = 'block';
+        }
+        
+        function hideConfirmModal() {
+            document.getElementById('confirmModal').style.display = 'none';
+            confirmCallback = null;
+        }
+        
+        document.getElementById('confirmOkBtn').onclick = function() {
+            if (confirmCallback) {
+                confirmCallback();
+            }
+            hideConfirmModal();
+        };
+        
+        // Закрытие модальных окон по клику вне
+        window.onclick = function(event) {
+            const createModal = document.getElementById('createBoardModal');
+            const editModal = document.getElementById('editBoardModal');
+            const confirmModal = document.getElementById('confirmModal');
+            
+            if (event.target === createModal) {
+                hideCreateBoardModal();
+            }
+            if (event.target === editModal) {
+                hideEditBoardModal();
+            }
+            if (event.target === confirmModal) {
+                hideConfirmModal();
+            }
+        };
+        
+        // Загружаем доски при загрузке страницы
+        document.addEventListener('DOMContentLoaded', loadBoards);
+    </script>
+</body>
+</html>

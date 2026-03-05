@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Личный кабинет - CollabBoard</title>
+    <link rel="stylesheet" href="styles/auth.css">
+    <style>
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        .user-info {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .logout-btn {
+            background: #ff4444;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="dashboard-header">
+                <h1>CollabBoard</h1>
+                <button class="logout-btn" onclick="logout()">Выйти</button>
+            </div>
+            
+            <div class="user-info">
+                <h2>Добро пожаловать в CollabBoard!</h2>
+                <p>Создавайте доски в двух режимах:</p>
+                <ul style="margin: 15px 0; padding-left: 20px; color: #b0b0c0;">
+                    <li>📋 <strong>Планы</strong> — списки задач и планирование</li>
+                    <li>🕸️ <strong>Воспоминания</strong> — интерактивные графы с заметками и изображениями</li>
+                </ul>
+                <div style="margin-top: 20px;">
+                    <a href="boards.html" class="auth-btn primary" style="display: inline-block; text-decoration: none;">
+                        📋 Перейти к доскам
+                    </a>
+                </div>
+            </div>
+            
+            <div class="auth-footer">
+                <p>Функционал досок находится в разработке 🚧</p>
+                <p><a href="index.html">← На главную</a></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function logout() {
+            localStorage.removeItem('token');
+            window.location.href = 'index.html';
+        }
+
+        // Проверяем авторизацию
+        const token = localStorage.getItem('token');
+        if (!token) {
+            window.location.href = 'login.html';
+        }
+    </script>
+</body>
+</html>
