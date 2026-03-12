@@ -198,7 +198,33 @@
             margin: 10px 0;
             flex-wrap: wrap;
         }
-        
+        /* Стили для выпадающего списка (чтобы был как поля ввода) */
+        #nodeType {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            background: rgba(255, 255, 255, 0.1); /* Полупрозрачный фон как у полей */
+            border: 1px solid rgba(255, 255, 255, 0.2); /* Такая же рамка */
+            border-radius: 8px; /* Такое же скругление */
+            color: white; /* Белый текст */
+            font-family: inherit; /* Наследуем шрифт от родителя */
+            font-size: 1rem; /* Размер шрифта как у полей */
+            appearance: none; /* Убираем стандартную стрелку браузера, чтобы лучше контролировать стиль */
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            /* Можно добавить свою кастомную стрелку, например, через background-image 
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>');
+            */background-repeat: no-repeat;
+            background-position: right 10px center;
+            background-size: 16px;
+        }
+
+        /* Стили для опций внутри выпадающего списка (когда он открыт) */
+        #nodeType option {
+            background: #1a1a2e; /* Темный фон как у модального окна */
+            color: white; /* Белый текст */
+        }
+
         .color-option {
             width: 30px;
             height: 30px;
