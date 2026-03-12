@@ -298,6 +298,12 @@
     </div>
     
     <script src="https://unpkg.com/cytoscape/dist/cytoscape.min.js"></script>
+    <!-- 🔥 НОВОЕ: Подключаем Socket.io и наш менеджер сокетов -->
+    <!-- Эти скрипты должны быть до основного кода, чтобы класс SocketManager был доступен -->
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="js/socket-manager.js"></script>
+    <!-- 👇 КОНЕЦ НОВОГО -->
+
     <script>
         // ========== НАСТРОЙКИ ==========
         const token = localStorage.getItem('token');
@@ -320,12 +326,27 @@
         let connectionMode = false;
         let selectedNodeForConnection = null;
         let currentBoardTitle = '';
+        let boardSocket = null;
         
         // ========== ИНИЦИАЛИЗАЦИЯ ==========
         document.addEventListener('DOMContentLoaded', async () => {
             await loadBoardInfo();
             await loadGraph();
             initCytoscape();
+            
+            // 🔥 НОВОЕ: Инициализация сокетов после загрузки доски
+            if (token && boardId) {
+                console.log('🔌 Инициализация SocketManager для доски', boardId);
+                boardSocket = new SocketManager(boardId, token);
+                boardSocket.connect();
+                
+                // Подписываемся на обновления от других пользователей
+                boardSocket.onUpdate((updateData) => {
+                    console.log('🔄 Изменения в графе от другого пользователя:', updateData);
+                    handleGraphUpdate(updateData);
+                });
+            }
+            // 👇 КОНЕЦ НОВОГО
         });
         
         // Загрузка информации о доске
@@ -415,12 +436,30 @@
                             'text-outline-color': '#1a1a2e',
                             'text-outline-width': '2px',
                             'font-size': '12px',
-                            'width': '50px',
-                            'height': '50px',
-                            'shape': 'ellipse',
+                            'width': '60px',
+                            'height': '60px',
+                            'shape': function(ele) {
+                                // Если это картинка — делаем квадрат со скруглёнными углами
+                                if (ele.data('type') === 'image') {
+                                    return 'round-rectangle'; // прямоугольник со скруглёнными углами
+                                }
+                                return 'ellipse'; // иначе круг
+                            },
                             'border-color': '#00ff88',
                             'border-width': '2px',
-                            'border-opacity': '0.5'
+                            'border-opacity': '0.5',
+                            'background-image': function(ele) {
+                                if (ele.data('type') === 'image' && ele.data('content')) {
+                                    return ele.data('content');
+                                }
+                                return null;
+                            },
+                            'background-fit': 'cover',
+                            'background-clip': 'none',
+                            'background-image-opacity': 1,
+                            'text-valign': 'bottom',   // текст снизу
+                            'text-halign': 'center',    // текст по центру
+                            'text-margin-y': '10px'     // отступ текста от вершины
                         }
                     },
                     {
@@ -513,6 +552,76 @@
             });
         }
         
+        // Вызывается, когда приходит обновление от другого пользователя
+        // Функция-обработчик для всех событий графа
+        function handleGraphUpdate(updateData) {
+            console.log('🔄 Обработка обновления графа:', updateData.type);
+            
+            switch (updateData.type) {
+                case 'node-added':
+                    // Добавляем вершину в граф
+                    cy.add({
+                        group: 'nodes',
+                        data: updateData.node.data,
+                        position: updateData.node.position
+                    });
+                    console.log('✅ Вершина добавлена через сокет');
+                    break;
+                    
+                case 'node-deleted':
+                    cy.getElementById(updateData.nodeId).remove();
+                    console.log('✅ Вершина удалена через сокет');
+                    break;
+                    
+                case 'node-edited':
+                    console.log('🔍 Получено редактирование вершины:', updateData);
+                    const nodeToEdit = cy.getElementById(updateData.nodeId);
+                    console.log('🔍 Найдена вершина?', nodeToEdit.length > 0 ? 'Да' : 'Нет');
+                    
+                    if (nodeToEdit.length > 0) {
+                        // Обновляем данные вершины
+                        nodeToEdit.data('label', updateData.label);
+                        nodeToEdit.data('type', updateData.nodeType);
+                        nodeToEdit.data('content', updateData.content);
+                        nodeToEdit.data('color', updateData.color);
+                        nodeToEdit.style('background-color', updateData.color);
+                        console.log('✅ Вершина отредактирована через сокет:', updateData.nodeId);
+                    } else {
+                        console.warn('⚠️ Вершина не найдена для редактирования:', updateData.nodeId);
+                    }
+                    break;
+                       
+                case 'node-moved':
+                    const nodeToMove = cy.getElementById(updateData.nodeId);
+                    if (nodeToMove.length > 0) {
+                        nodeToMove.position({
+                            x: updateData.x,
+                            y: updateData.y
+                        });
+                        console.log('✅ Вершина перемещена через сокет');
+                    } else {
+                        console.warn('⚠️ Вершина не найдена для перемещения:', updateData.nodeId);
+                    }
+                    break;
+                    
+                case 'edge-added':
+                    cy.add({
+                        group: 'edges',
+                        data: updateData.edge.data
+                    });
+                    console.log('✅ Связь добавлена через сокет');
+                    break;
+                    
+                case 'edge-deleted':
+                    cy.getElementById(updateData.edgeId).remove();
+                    console.log('✅ Связь удалена через сокет');
+                    break;
+                    
+                default:
+                    console.log('Неизвестный тип обновления:', updateData.type);
+            }
+        }
+        
         // ========== ФУНКЦИИ ДЛЯ РАБОТЫ С ВЕРШИНАМИ ==========
         
         function showAddNodeModal() {
@@ -540,6 +649,14 @@
             document.getElementById('nodeType').value = node.data('type') || 'text';
             document.getElementById('nodeContent').value = node.data('content') || '';
             document.getElementById('editingNodeId').value = node.id();
+
+            // Добавляем подсказку в зависимости от типа
+            const contentLabel = document.querySelector('label[for="nodeContent"]');
+            if (node.data('type') === 'image') {
+                document.getElementById('nodeContent').placeholder = 'Вставьте ссылку на изображение (https://...)';
+            } else {
+                document.getElementById('nodeContent').placeholder = 'Содержимое (текст или ссылка на изображение)';
+            }
             
             // Выбираем цвет вершины
             const nodeColor = node.data('color') || '#8a2be2';
@@ -560,6 +677,8 @@
                 'Удаление вершины',
                 'Вы уверены, что хотите удалить эту вершину? Все связи с ней тоже будут удалены.',
                 async function() {
+                    console.log('🗑️ Подтверждено удаление вершины:', nodeId);
+                    
                     try {
                         const response = await fetch(`${API_URL}/${boardId}/nodes/${nodeId}`, {
                             method: 'DELETE',
@@ -569,13 +688,24 @@
                         });
                         
                         const data = await response.json();
+                        console.log('📥 Ответ от сервера при удалении:', data);
                         
                         if (data.success) {
                             // Удаляем вершину из графа
                             cy.getElementById(nodeId).remove();
                             
-                            // Закрываем модальное окно
-                            hideNodeModal(); // ← ЭТО ДОБАВИТЬ!
+                            // 🔥 ВАЖНО: Отправляем уведомление остальным
+                            if (boardSocket) {
+                                boardSocket.sendUpdate({
+                                    type: 'node-deleted',
+                                    nodeId: nodeId
+                                });
+                                console.log('📤 Отправлено уведомление об удалении вершины');
+                            }
+                            
+                            // 🔥 ВАЖНО: Закрываем модальное окно
+                            hideNodeModal();
+                            console.log('✅ Модальное окно закрыто после удаления');
                             
                         } else {
                             alert('Ошибка: ' + data.message);
@@ -634,15 +764,33 @@
                     });
                     
                     const data = await response.json();
+                    console.log('📥 Ответ от сервера при редактировании:', data);
                     
                     if (data.success) {
-                        // Обновляем вершину в графе
-                        const node = cy.getElementById(editingNodeId);
-                        node.data('label', label);
-                        node.data('type', type);
-                        node.data('content', content);
-                        node.data('color', selectedColor);
-                        node.style('background-color', selectedColor);
+                        // Обновляем вершину в графе - используем правильный синтаксис
+                        const nodeToUpdate = cy.$id(editingNodeId); // Вместо getElementById используем $id
+                        if (nodeToUpdate.length > 0) {
+                            nodeToUpdate.data('label', label);
+                            nodeToUpdate.data('type', type);
+                            nodeToUpdate.data('content', content);
+                            nodeToUpdate.data('color', selectedColor);
+                            nodeToUpdate.style('background-color', selectedColor);
+                            
+                            // 🔥 ВАЖНО: Сообщаем остальным об изменении вершины
+                            if (boardSocket) {
+                                boardSocket.sendUpdate({
+                                    type: 'node-edited',
+                                    nodeId: editingNodeId,
+                                    label: label,
+                                    nodeType: type,
+                                    content: content,
+                                    color: selectedColor
+                                });
+                                console.log('📤 Отправлено уведомление об изменении вершины');
+                            }
+                        } else {
+                            console.warn('⚠️ Вершина не найдена в графе:', editingNodeId);
+                        }
                         
                         hideNodeModal();
                     } else {
@@ -687,6 +835,25 @@
                             position: { x: data.node.x, y: data.node.y }
                         });
                         
+                        // 🔥 НОВОЕ: Сообщаем остальным о новой вершине
+                        if (boardSocket) {
+                            boardSocket.sendUpdate({
+                                type: 'node-added',
+                                node: {
+                                    data: {
+                                        id: data.node.id,
+                                        label: data.node.label,
+                                        type: data.node.type,
+                                        content: data.node.content,
+                                        color: data.node.color
+                                    },
+                                    position: { x: data.node.x, y: data.node.y }
+                                }
+                            });
+                            console.log('📤 Отправлено уведомление о новой вершине');
+                        }
+                        // 👇 КОНЕЦ НОВОГО
+                        
                         hideNodeModal();
                     } else {
                         alert('Ошибка: ' + data.message);
@@ -698,6 +865,9 @@
             }
         }
         
+        // Храним последнюю позицию для каждой вершины
+        let lastPositions = {};
+
         async function updateNodePosition(nodeId, position) {
             try {
                 await fetch(`${API_URL}/${boardId}/nodes/${nodeId}`, {
@@ -708,30 +878,22 @@
                     },
                     body: JSON.stringify({ x: position.x, y: position.y })
                 });
+                
+                // Сообщаем остальным о перемещении
+                if (boardSocket) {
+                    boardSocket.sendUpdate({
+                        type: 'node-moved',
+                        nodeId: nodeId,
+                        x: position.x,
+                        y: position.y
+                    });
+                    console.log('📤 Отправлено уведомление о перемещении вершины');
+                }
             } catch (error) {
                 console.error('Error updating node position:', error);
             }
         }
         
-        async function deleteNode(nodeId) {
-            try {
-                const response = await fetch(`${API_URL}/${boardId}/nodes/${nodeId}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    cy.getElementById(nodeId).remove();
-                } else {
-                    alert('Ошибка удаления вершины');
-                }
-            } catch (error) {
-                console.error('Error deleting node:', error);
-                alert('Ошибка соединения с сервером');
-            }
-        }
         
         // ========== ФУНКЦИИ ДЛЯ РАБОТЫ СО СВЯЗЯМИ ==========
         
@@ -773,6 +935,23 @@
                             label: ''
                         }
                     });
+                    
+                    // 🔥 НОВОЕ: Сообщаем остальным о новой связи
+                    if (boardSocket) {
+                        boardSocket.sendUpdate({
+                            type: 'edge-added',
+                            edge: {
+                                data: {
+                                    id: data.edge.id,
+                                    source: sourceId,
+                                    target: targetId,
+                                    label: ''
+                                }
+                            }
+                        });
+                        console.log('📤 Отправлено уведомление о новой связи');
+                    }
+                    // 👇 КОНЕЦ НОВОГО
                 } else {
                     alert('Ошибка создания связи');
                 }
@@ -793,6 +972,16 @@
                 
                 if (data.success) {
                     cy.getElementById(edgeId).remove();
+                    
+                    // 🔥 НОВОЕ: Сообщаем остальным об удалении связи
+                    if (boardSocket) {
+                        boardSocket.sendUpdate({
+                            type: 'edge-deleted',
+                            edgeId: edgeId
+                        });
+                        console.log('📤 Отправлено уведомление об удалении связи');
+                    }
+                    // 👇 КОНЕЦ НОВОГО
                 } else {
                     alert('Ошибка удаления связи');
                 }
@@ -821,6 +1010,17 @@
             });
         });
         
+        // Меняем плейсхолдер при выборе типа
+        document.getElementById('nodeType').addEventListener('change', function() {
+            const type = this.value;
+            const contentInput = document.getElementById('nodeContent');
+            if (type === 'image') {
+                contentInput.placeholder = 'Вставьте ссылку на изображение (https://...)';
+            } else {
+                contentInput.placeholder = 'Содержимое (текст или ссылка на изображение)';
+            }
+        });
+
         // ========== МОДАЛЬНОЕ ОКНО ПОДТВЕРЖДЕНИЯ ==========
         let confirmCallback = null;
         

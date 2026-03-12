@@ -321,6 +321,52 @@
         if (!boardId) {
             window.location.href = 'boards.html';
         }
+        // ... (код получения boardId и token)
+
+        // Глобальная переменная для доступа к сокет-менеджеру из функций
+        let boardSocket = null;
+
+        // Инициализация при загрузке страницы
+        document.addEventListener('DOMContentLoaded', async () => {
+            // ... (твой старый код загрузки доски - loadBoard и т.д.)
+
+            // Инициализация сокетов ПОСЛЕ загрузки данных
+            if (token && boardId) {
+                boardSocket = new SocketManager(boardId, token);
+                boardSocket.connect();
+
+                // Подписываемся на обновления от других пользователей
+                boardSocket.onUpdate((updateData) => {
+                    console.log('🔄 Изменения от другого пользователя:', updateData);
+
+                    // Смотрим, что за тип обновления пришел
+                    if (updateData.type === 'item-added') {
+                        // Кто-то добавил задачу
+                        appendNewItemToDOM(updateData.item);
+                    }
+
+                    // обработка удаления
+                    if (updateData.type === 'item-deleted') {
+                        removeItemFromDOM(updateData.itemId);
+                    }
+                    // обработка чекбокса
+                    if (updateData.type === 'item-toggled') {
+                        toggleItemFromDOM(updateData.itemId, updateData.completed);
+                    }
+                    // обработка редактирования
+                    if (updateData.type === 'item-edited') {
+                        updateItemTextInDOM(updateData.itemId, updateData.newText);
+                    }
+                });
+            }
+        });
+
+        // Функции addItem, deleteItem, toggleItem, updateBoardTitle, updateItem
+        // нужно будет дополнить отправкой обновлений через сокет.
+        // Например, в функции addItem ПОСЛЕ успешного fetch, добавим вызов:
+        // if (boardSocket) {
+        //     boardSocket.sendUpdate({ type: 'item-added', item: data.item });
+        // }
         
         const API_URL = '/api/boards';
         
@@ -354,7 +400,7 @@
         
         // Отображение доски
         function displayBoard(board) {
-            document.getElementById('boardTitle').textContent = board.title;
+            document.getElementById('boardTitle').textContent = board.title;    
             
             const itemsList = document.getElementById('itemsList');
             
@@ -374,7 +420,7 @@
                         <li class="item-card">
                             <input type="checkbox" class="item-checkbox" 
                                    ${item.completed ? 'checked' : ''}
-                                   onchange="toggleItem(${item.id}, this.checked)">
+                                   onchange="toggleItem(${item.id}, this)">
                             <span class="item-text ${item.completed ? 'completed' : ''}">
                                 ${item.text}
                             </span>
@@ -391,17 +437,127 @@
                 </ul>
             `;
         }
+        // Функция для добавления одного элемента в список на странице
+        function appendNewItemToDOM(item) {
+            const itemsList = document.getElementById('itemsList');
+            const listElement = itemsList.querySelector('ul'); // Находим существующий <ul>
+
+            // Если список задач пустой, может не быть <ul>. Создадим его, если надо.
+            if (!listElement) {
+                // Если список пустой, просто перезагрузим всю доску (временное, но надежное решение)
+                // Чтобы не усложнять, можно просто вызвать loadBoard()
+                // Но для красоты можно создать структуру
+                itemsList.innerHTML = `<ul class="items-list"></ul>`;
+            }
+
+            // Находим <ul> снова (он теперь точно есть)
+            const ul = document.querySelector('.items-list');
+
+            // Создаем HTML для нового элемента (копируем верстку из displayBoard)
+            const newItemHtml = `
+                <li class="item-card">
+                    <input type="checkbox" class="item-checkbox" 
+                        ${item.completed ? 'checked' : ''}
+                        onchange="toggleItem(${item.id}, this)">
+                    <span class="item-text ${item.completed ? 'completed' : ''}">
+                        ${item.text}
+                    </span>
+                    <div class="item-actions">
+                        <button class="item-edit-btn" onclick="showEditItemModal(${item.id}, '${item.text}')">
+                            ✏️
+                        </button>
+                        <button class="item-delete-btn" onclick="deleteItem(${item.id})">
+                            🗑️
+                        </button>
+                    </div>
+                </li>
+            `;
+
+            // Добавляем в конец списка
+            ul.insertAdjacentHTML('beforeend', newItemHtml);
+        }
+
+        // Удалить элемент из списка на странице
+        function removeItemFromDOM(itemId) {
+            const itemElement = document.querySelector(`.item-card input[onchange*="toggleItem(${itemId}"]`)?.closest('.item-card');
+            // Или проще — ищем по атрибуту, но сложнее. Сделаем проще:
+            
+            // Перебираем все элементы и ищем тот, у которого в onclick есть нужный itemId
+            const items = document.querySelectorAll('.item-card');
+            items.forEach(item => {
+                const deleteBtn = item.querySelector('.item-delete-btn');
+                if (deleteBtn && deleteBtn.getAttribute('onclick')?.includes(`deleteItem(${itemId}`)) {
+                    item.remove();
+                }
+            });
+            
+            // Если после удаления список стал пустым — показываем заглушку
+            const itemsList = document.getElementById('itemsList');
+            if (itemsList.querySelectorAll('.item-card').length === 0) {
+                itemsList.innerHTML = `
+                    <div class="empty-items">
+                        <p>📭 На этой доске пока нет задач</p>
+                        <p>Добавьте первую задачу выше!</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Обновить состояние чекбокса у другого пользователя
+        function toggleItemFromDOM(itemId, completed) {
+            // Ищем элемент по data-атрибуту или по содержимому
+            const checkboxes = document.querySelectorAll('.item-checkbox');
+            
+            for (let checkbox of checkboxes) {
+                // Получаем родительскую карточку
+                const itemCard = checkbox.closest('.item-card');
+                const deleteBtn = itemCard.querySelector('.item-delete-btn');
+                
+                // Проверяем, тот ли это item (по тексту в onclick кнопки удаления)
+                if (deleteBtn && deleteBtn.getAttribute('onclick')?.includes(`deleteItem(${itemId}`)) {
+                    // Меняем состояние чекбокса
+                    checkbox.checked = completed;
+                    
+                    // Меняем стиль текста
+                    const itemText = itemCard.querySelector('.item-text');
+                    if (completed) {
+                        itemText.classList.add('completed');
+                    } else {
+                        itemText.classList.remove('completed');
+                    }
+                    break;
+                }
+            }
+        }
+
+        // Обновить текст задачи в DOM
+        function updateItemTextInDOM(itemId, newText) {
+            // Ищем элемент с этим itemId (по кнопке удаления)
+            const items = document.querySelectorAll('.item-card');
+            
+            for (let item of items) {
+                const deleteBtn = item.querySelector('.item-delete-btn');
+                if (deleteBtn && deleteBtn.getAttribute('onclick')?.includes(`deleteItem(${itemId}`)) {
+                    const textSpan = item.querySelector('.item-text');
+                    if (textSpan) {
+                        textSpan.textContent = newText;
+                    }
+                    break;
+                }
+            }
+        }
         
         // Добавить задачу
         async function addItem() {
             const text = document.getElementById('newItemText').value.trim();
-            
+
             if (!text) {
                 alert('Введите текст задачи');
                 return;
             }
-            
+
             try {
+                // 1. Отправляем запрос на сервер для сохранения
                 const response = await fetch(`${API_URL}/${boardId}/items`, {
                     method: 'POST',
                     headers: {
@@ -410,24 +566,53 @@
                     },
                     body: JSON.stringify({ text })
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success) {
+                    // 2. Очищаем поле ввода
                     document.getElementById('newItemText').value = '';
-                    loadBoard(); // Перезагружаем доску
+
+                    // 3. ВАЖНО: Добавляем новую задачу в список на странице (без перезагрузки!)
+                    //    Для этого нам понадобится функция, которая умеет отрисовывать один элемент
+                    appendNewItemToDOM(data.item);
+
+                    // 4. Сообщаем всем остальным через сокет, что добавлен новый элемент
+                    if (boardSocket) {
+                        boardSocket.sendUpdate({
+                            type: 'item-added',
+                            item: data.item
+                        });
+                    } else {
+                        console.warn('Сокет не инициализирован, но задача добавлена локально');
+                    }
+
                 } else {
                     alert('Ошибка: ' + data.message);
                 }
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Error adding item:', error);
                 alert('Ошибка соединения с сервером');
             }
         }
         
-        // Переключить выполнение задачи
-        async function toggleItem(itemId, completed) {
+       // Переключить выполнение задачи
+        async function toggleItem(itemId, checkboxElement) {
+            // const completed = checkboxElement.checked; // так тоже можно
+            const completed = checkboxElement.checked; // получаем состояние
+            
+            // Сразу меняем стиль на своей странице (без ожидания сервера)
+            const itemCard = checkboxElement.closest('.item-card');
+            const itemText = itemCard.querySelector('.item-text');
+            
+            if (completed) {
+                itemText.classList.add('completed');
+            } else {
+                itemText.classList.remove('completed');
+            }
+
             try {
+                // Отправляем на сервер
                 await fetch(`${API_URL}/${boardId}/items/${itemId}`, {
                     method: 'PATCH',
                     headers: {
@@ -436,13 +621,28 @@
                     },
                     body: JSON.stringify({ completed })
                 });
-                // Не ждем ответа, просто отправляем
+
+                // Сообщаем остальным
+                if (boardSocket) {
+                    boardSocket.sendUpdate({
+                        type: 'item-toggled',
+                        itemId: itemId,
+                        completed: completed
+                    });
+                }
             } catch (error) {
                 console.error('Error toggling item:', error);
+                // Если ошибка — можно вернуть как было
+                if (completed) {
+                    itemText.classList.remove('completed');
+                } else {
+                    itemText.classList.add('completed');
+                }
+                checkboxElement.checked = !completed;
             }
         }
         
-        // Удалить задачу
+       // Удалить задачу
         async function deleteItem(itemId) {
             showConfirm(
                 'Удаление задачи',
@@ -455,11 +655,20 @@
                                 'Authorization': `Bearer ${token}`
                             }
                         });
-                        
+
                         const data = await response.json();
-                        
+
                         if (data.success) {
-                            loadBoard();
+                            // Удаляем элемент из DOM
+                            removeItemFromDOM(itemId);
+
+                            // Сообщаем остальным через сокет
+                            if (boardSocket) {
+                                boardSocket.sendUpdate({
+                                    type: 'item-deleted',
+                                    itemId: itemId
+                                });
+                            }
                         } else {
                             alert('Ошибка удаления');
                         }
@@ -526,7 +735,7 @@
             document.getElementById('editItemModal').style.display = 'none';
         }
         
-        // Обновить задачу
+       // Обновить задачу
         async function updateItem() {
             const itemId = document.getElementById('editItemId').value;
             const text = document.getElementById('editItemInput').value.trim();
@@ -549,8 +758,19 @@
                 const data = await response.json();
                 
                 if (data.success) {
+                    // Обновляем текст на своей странице
+                    updateItemTextInDOM(itemId, text);
+                    
+                    // Сообщаем остальным через сокет
+                    if (boardSocket) {
+                        boardSocket.sendUpdate({
+                            type: 'item-edited',
+                            itemId: itemId,
+                            newText: text
+                        });
+                    }
+                    
                     hideEditItemModal();
-                    loadBoard();
                 } else {
                     alert('Ошибка: ' + data.message);
                 }
@@ -640,5 +860,9 @@
             }
         }
     </script>
+    <!-- Подключаем библиотеку Socket.io с CDN (должна быть ПЕРЕД нашим скриптом) -->
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<!-- Подключаем наш менеджер сокетов -->
+<script src="js/socket-manager.js"></script>
 </body>
 </html>

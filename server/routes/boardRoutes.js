@@ -61,15 +61,9 @@ router.get('/test', (req, res) => {
 });
 // 1. Получить все доски текущего пользователя
 router.get('/', authenticateToken, (req, res) => {
-    console.log('🔥🔥🔥 GET / ВЫЗВАН!');
-    console.log('👤 userId:', req.user.userId);
-    
     try {
         const userId = req.user.userId;
         const boards = db.getUserBoards(userId);
-        
-        console.log('📦 Найдено досок:', boards.length);
-        console.log('📤 Отправка JSON ответа...');
         
         res.json({
             success: true,
@@ -83,9 +77,7 @@ router.get('/', authenticateToken, (req, res) => {
             }))
         });
         
-        console.log('✅ Ответ отправлен');
     } catch (error) {
-        console.error('💥 Ошибка в GET /:', error);
         res.status(500).json({
             success: false,
             message: 'Ошибка сервера'
