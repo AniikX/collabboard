@@ -48,7 +48,7 @@ body {
 .auth-header h1 {
     font-size: 2rem;
     margin-bottom: 10px;
-    background: linear-gradient(45deg, var(--accent-neon), var(--accent-purple));
+    background: linear-gradient(135deg, #00ffaa, #00ff88, var(--accent-purple));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
@@ -117,7 +117,7 @@ body {
 }
 
 .auth-btn.primary {
-    background: linear-gradient(45deg, var(--accent-neon), var(--accent-purple));
+    background: linear-gradient(135deg, #00ffaa, #00ff88, var(--accent-purple));
     color: var(--bg-primary);
 }
 
