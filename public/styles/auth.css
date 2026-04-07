@@ -48,7 +48,7 @@ body {
 .auth-header h1 {
     font-size: 2rem;
     margin-bottom: 10px;
-    background: linear-gradient(135deg, #00ffaa, #00ff88, var(--accent-purple));
+    background: linear-gradient(45deg, var(--accent-neon), var(--accent-purple));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
@@ -117,7 +117,7 @@ body {
 }
 
 .auth-btn.primary {
-    background: linear-gradient(135deg, #00ffaa, #00ff88, var(--accent-purple));
+    background: linear-gradient(45deg, var(--accent-neon), var(--accent-purple));
     color: var(--bg-primary);
 }
 
@@ -181,4 +181,21 @@ body {
     border-radius: 10px;
     text-align: center;
     margin-bottom: 20px;
+}
+
+/* Мобильная версия — принудительно задаём градиент, как на ПК */
+@media (max-width: 768px) {
+    .auth-header h1 {
+        background: linear-gradient(120deg, #00ffaa, #00ff88, #8a2be2, #8a2be2);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        text-shadow: none;
+    }
+
+    .auth-btn.primary {
+        background: linear-gradient(120deg, #00ffaa, #00ff88, #8a2be2);
+        color: white;
+        border: none;
+    }
 }
