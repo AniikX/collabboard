@@ -5,17 +5,12 @@ const db = require('../simple-db');
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'collabboard-secret-key-2024';
 
-// Register new user
+// ========== РЕГИСТРАЦИЯ ==========
 router.post('/register', async (req, res) => {
     try {
-        console.log('📝 Регистрация запроса:', req.body);
-        console.log('📧 Email:', req.body.email);
-        console.log('👤 Username:', req.body.username);
-        console.log('Registration attempt:', req.body);
-        
         const { username, email, password } = req.body;
 
-        // Validate input
+        // Валидация полей
         if (!username || !email || !password) {
             return res.status(400).json({
                 success: false,
@@ -37,7 +32,7 @@ router.post('/register', async (req, res) => {
             });
         }
 
-        // Check if user already exists
+        // Проверка уникальности
         if (db.findUserByEmail(email)) {
             return res.status(400).json({
                 success: false,
@@ -52,14 +47,10 @@ router.post('/register', async (req, res) => {
             });
         }
 
-        // Create user
-        const user = db.createUser({
-            username,
-            email,
-            password
-        });
+        // Создание пользователя
+        const user = db.createUser({ username, email, password });
 
-        // Generate JWT token
+        // Генерация JWT-токена (срок действия 24 часа)
         const token = jwt.sign(
             { userId: user.id, username: user.username },
             JWT_SECRET,
@@ -70,18 +61,10 @@ router.post('/register', async (req, res) => {
             success: true,
             message: 'Пользователь успешно зарегистрирован',
             token,
-            user: {
-                id: user.id,
-                username: user.username,
-                email: user.email
-            }
+            user: { id: user.id, username: user.username, email: user.email }
         });
-        console.log('✅ Пользователь создан:', {
-            id: user.id,
-            username: user.username,
-            email: user.email,
-            time: new Date().toLocaleTimeString()
-        });
+
+        console.log('✅ Пользователь создан:', user.username);
 
     } catch (error) {
         console.error('Registration error:', error);
@@ -92,13 +75,11 @@ router.post('/register', async (req, res) => {
     }
 });
 
-// Login user
+// ========== ВХОД ==========
 router.post('/login', async (req, res) => {
     try {
-        console.log('🔐 Попытка входа:', req.body.email);
         const { email, password } = req.body;
 
-        // Find user
         const user = db.findUserByEmail(email);
         if (!user) {
             return res.status(401).json({
@@ -107,19 +88,16 @@ router.post('/login', async (req, res) => {
             });
         }
 
-        // Check password
-        const isMatch = password === user.password;
-        if (!isMatch) {
+        // Сравнение паролей (в демо-версии без хеширования)
+        if (password !== user.password) {
             return res.status(401).json({
                 success: false,
                 message: 'Неверный email или пароль'
             });
         }
 
-        // Update last login
         user.lastLogin = new Date();
 
-        // Generate JWT token
         const token = jwt.sign(
             { userId: user.id, username: user.username },
             JWT_SECRET,
@@ -130,17 +108,10 @@ router.post('/login', async (req, res) => {
             success: true,
             message: 'Вход выполнен успешно',
             token,
-            user: {
-                id: user.id,
-                username: user.username,
-                email: user.email
-            }
+            user: { id: user.id, username: user.username, email: user.email }
         });
-        console.log('✅ Успешный вход:', {
-            user: user.username,
-            email: user.email,
-            time: new Date().toLocaleTimeString()
-        });
+
+        console.log('✅ Успешный вход:', user.username);
 
     } catch (error) {
         console.error('Login error:', error);
@@ -150,33 +121,22 @@ router.post('/login', async (req, res) => {
         });
     }
 });
+
+// Дублирующий маршрут для совместимости с Vercel
 router.post('/real-login', async (req, res) => {
     try {
-        console.log('🔐 Попытка входа:', req.body.email);
         const { email, password } = req.body;
 
-        // Find user
         const user = db.findUserByEmail(email);
-        if (!user) {
+        if (!user || password !== user.password) {
             return res.status(401).json({
                 success: false,
                 message: 'Неверный email или пароль'
             });
         }
 
-        // Check password
-        const isMatch = password === user.password;
-        if (!isMatch) {
-            return res.status(401).json({
-                success: false,
-                message: 'Неверный email или пароль'
-            });
-        }
-
-        // Update last login
         user.lastLogin = new Date();
 
-        // Generate JWT token
         const token = jwt.sign(
             { userId: user.id, username: user.username },
             JWT_SECRET,
@@ -187,17 +147,10 @@ router.post('/real-login', async (req, res) => {
             success: true,
             message: 'Вход выполнен успешно',
             token,
-            user: {
-                id: user.id,
-                username: user.username,
-                email: user.email
-            }
+            user: { id: user.id, username: user.username, email: user.email }
         });
-        console.log('✅ Успешный вход:', {
-            user: user.username,
-            email: user.email,
-            time: new Date().toLocaleTimeString()
-        });
+
+        console.log('✅ Успешный вход (real-login):', user.username);
 
     } catch (error) {
         console.error('Login error:', error);
@@ -208,8 +161,8 @@ router.post('/real-login', async (req, res) => {
     }
 });
 
-// Verify token middleware
-
+// ========== MIDDLEWARE ПРОВЕРКИ ТОКЕНА ==========
+// Выполняется перед защищёнными маршрутами
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -228,12 +181,12 @@ const authenticateToken = (req, res, next) => {
                 message: 'Неверный или просроченный токен'
             });
         }
-        req.user = user;
+        req.user = user; // Данные пользователя из токена
         next();
     });
 };
 
-// Get current user
+// ========== ПОЛУЧЕНИЕ ДАННЫХ ТЕКУЩЕГО ПОЛЬЗОВАТЕЛЯ ==========
 router.get('/me', authenticateToken, async (req, res) => {
     try {
         const users = db.getAllUsers();
@@ -264,10 +217,9 @@ router.get('/me', authenticateToken, async (req, res) => {
     }
 });
 
-// ADMIN ROUTES
+// ========== АДМИН-МАРШРУТЫ (ДЛЯ УПРАВЛЕНИЯ ПОЛЬЗОВАТЕЛЯМИ) ==========
 
-// Get all users
-
+// Получить всех пользователей
 router.get('/admin/users', authenticateToken, async (req, res) => {
     try {
         const users = db.getAllUsers();
@@ -292,12 +244,12 @@ router.get('/admin/users', authenticateToken, async (req, res) => {
     }
 });
 
-// Delete user
+// Удалить пользователя
 router.delete('/admin/users/:id', authenticateToken, async (req, res) => {
     try {
         const userId = parseInt(req.params.id);
         
-        // Prevent self-deletion
+        // Запрещаем удалять самого себя
         if (userId === req.user.userId) {
             return res.status(400).json({
                 success: false,
@@ -328,7 +280,7 @@ router.delete('/admin/users/:id', authenticateToken, async (req, res) => {
     }
 });
 
-// Deactivate user
+// Деактивировать пользователя
 router.patch('/admin/users/:id/deactivate', authenticateToken, async (req, res) => {
     try {
         const userId = parseInt(req.params.id);

@@ -183,7 +183,7 @@ body {
     margin-bottom: 20px;
 }
 
-/* Мобильная версия — принудительно задаём градиент, как на ПК */
+/* Мобильная версия */
 @media (max-width: 768px) {
     .auth-header h1 {
         background: #00c8d0 !important;
@@ -192,19 +192,6 @@ body {
         color: transparent !important;
     }
 
-    .auth-btn.primary {
-        background: #00c8d0 !important;
-        color: var(--bg-primary) !important;
-    }
-    /* Заголовок */
-    .auth-header h1 {
-        background: #00c8d0 !important;
-        -webkit-background-clip: text !important;
-        background-clip: text !important;
-        color: transparent !important;
-    }
-
-    /* Главные кнопки (создать доску, добавить задачу, сохранить) */
     .auth-btn.primary,
     .create-board-btn,
     .add-item-btn,
@@ -214,7 +201,6 @@ body {
         border: none !important;
     }
 
-    /* Кнопка соединения вершин (если градиент) */
     .controls-panel button:not(.secondary) {
         background: #00c8d0 !important;
         color: #0f0f1a !important;
