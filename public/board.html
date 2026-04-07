@@ -248,6 +248,34 @@
         .back-link:hover {
             text-decoration: underline;
         }
+        @media (max-width: 768px) {
+            .board-container {
+                padding: 10px;
+                overflow-x: hidden;
+            }
+
+            .board-header {
+                flex-wrap: wrap;
+                justify-content: space-between;
+                gap: 10px;
+            }
+
+            .board-title-section {
+                max-width: 70%;
+                word-break: break-word;
+            }
+
+            .board-title {
+                font-size: 1.3rem;
+                word-break: break-word;
+                overflow-wrap: break-word;
+            }
+
+            .edit-title-btn {
+                font-size: 0.8rem;
+                padding: 4px 8px;
+            }
+        }
     </style>
 </head>
 <body>
