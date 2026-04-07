@@ -186,16 +186,14 @@ body {
 /* Мобильная версия — принудительно задаём градиент, как на ПК */
 @media (max-width: 768px) {
     .auth-header h1 {
-        background: linear-gradient(120deg, #00ffaa, #00ff88, #8a2be2, #8a2be2);
-        -webkit-background-clip: text;
-        background-clip: text;
-        color: transparent;
-        text-shadow: none;
+        background: linear-gradient(135deg, #00e0d0, #2a6eff, #aa66ff) !important;
+        -webkit-background-clip: text !important;
+        background-clip: text !important;
+        color: transparent !important;
     }
 
     .auth-btn.primary {
-        background: linear-gradient(120deg, #00ffaa, #00ff88, #8a2be2);
-        color: white;
-        border: none;
+        background: linear-gradient(135deg, #00e0d0, #2a6eff, #aa66ff) !important;
+        color: white !important;
     }
 }
