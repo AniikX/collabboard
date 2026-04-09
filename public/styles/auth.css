@@ -184,7 +184,7 @@ body {
 }
 
 /* Мобильная версия */
-@media (max-width: 768px) {
+/* @media (max-width: 768px) {
     .auth-header h1 {
         background: #00c8d0 !important;
         -webkit-background-clip: text !important;
@@ -205,4 +205,4 @@ body {
         background: #00c8d0 !important;
         color: #0f0f1a !important;
     }
-}
+} */
