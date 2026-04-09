@@ -654,10 +654,15 @@
             confirmCallback = null;
         }
         
-        document.getElementById('confirmOkBtn').onclick = function() {
-            if (confirmCallback) confirmCallback();
-            hideConfirmModal();
-        };
+        const confirmOkBtn = document.getElementById('confirmOkBtn');
+        if (confirmOkBtn) {
+            confirmOkBtn.onclick = function() {
+                if (confirmCallback) {
+                    confirmCallback();
+                }
+                hideConfirmModal();
+            };
+        }
         
         // === WEBSOCKET ПОДКЛЮЧЕНИЕ ===
         document.addEventListener('DOMContentLoaded', async () => {
